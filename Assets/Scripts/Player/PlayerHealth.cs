@@ -2,153 +2,291 @@ using UnityEngine;
 using System;
 
 /// <summary>
-/// Script quản lý máu và sát thương của player
-/// Xử lý nhận sát thương, hồi máu, và sự kiện chết
+/// Manages player health, damage, healing, and death states.
+/// Handles invincibility frames and health change events.
 /// </summary>
 public class PlayerHealth : MonoBehaviour
 {
+    #region Constants
+    
+    private const int MIN_HEALTH = 0;
+    
+    #endregion
+    
+    #region Inspector Settings
+    
     [Header("Health Settings")]
-    [SerializeField] private int maxHealth = 100;
-    [SerializeField] private int currentHealth;
-    [SerializeField] private float invincibilityDuration = 1f; // Thời gian bất tử sau khi bị thương
+    [Tooltip("Maximum health points")]
+    [Range(1, 1000)]
+    [SerializeField] private int _maxHealth = 100;
+    
+    [Tooltip("Duration of invincibility after taking damage (seconds)")]
+    [Range(0f, 5f)]
+    [SerializeField] private float _invincibilityDuration = 1f;
     
     [Header("References")]
-    [SerializeField] private PlayerAnimation playerAnimation;
+    [Tooltip("Player animation component for hurt animation trigger")]
+    [SerializeField] private PlayerAnimation _playerAnimation;
     
-    // Events
-    public event Action<int, int> OnHealthChanged; // (currentHealth, maxHealth)
+    #endregion
+    
+    #region Events
+    
+    /// <summary>
+    /// Invoked when health changes. Parameters: (currentHealth, maxHealth)
+    /// </summary>
+    public event Action<int, int> OnHealthChanged;
+    
+    /// <summary>
+    /// Invoked when player dies
+    /// </summary>
     public event Action OnPlayerDied;
+    
+    /// <summary>
+    /// Invoked when player takes damage (before death check)
+    /// </summary>
     public event Action OnPlayerHurt;
     
-    // Private variables
-    private bool isInvincible = false;
-    private float invincibilityTimer = 0f;
+    #endregion
     
-    // Properties
-    public int CurrentHealth => currentHealth;
-    public int MaxHealth => maxHealth;
-    public bool IsDead => currentHealth <= 0;
-    public bool IsInvincible => isInvincible;
+    #region Private Fields
+    
+    private int _currentHealth;
+    private bool _isInvincible;
+    private float _invincibilityTimer;
+    
+    #endregion
+    
+    #region Public Properties
+    
+    /// <summary>
+    /// Current health value
+    /// </summary>
+    public int CurrentHealth => _currentHealth;
+    
+    /// <summary>
+    /// Maximum health value
+    /// </summary>
+    public int MaxHealth => _maxHealth;
+    
+    /// <summary>
+    /// Returns true if player is dead (health <= 0)
+    /// </summary>
+    public bool IsDead => _currentHealth <= MIN_HEALTH;
+    
+    /// <summary>
+    /// Returns true if player is currently invincible
+    /// </summary>
+    public bool IsInvincible => _isInvincible;
+    
+    #endregion
+    
+    #region Unity Lifecycle
     
     private void Awake()
     {
-        // Khởi tạo máu đầy
-        currentHealth = maxHealth;
-        
-        // Tự động tìm PlayerAnimation nếu chưa được gán
-        if (playerAnimation == null)
-        {
-            playerAnimation = GetComponent<PlayerAnimation>();
-        }
+        InitializeHealth();
+        CacheComponents();
     }
     
     private void Update()
     {
-        HandleInvincibility();
+        UpdateInvincibility();
+    }
+    
+    #endregion
+    
+    #region Initialization
+    
+    /// <summary>
+    /// Initialize health to maximum value
+    /// </summary>
+    private void InitializeHealth()
+    {
+        _currentHealth = _maxHealth;
     }
     
     /// <summary>
-    /// Xử lý thời gian bất tử sau khi bị thương
+    /// Cache required components
     /// </summary>
-    private void HandleInvincibility()
+    private void CacheComponents()
     {
-        if (isInvincible)
+        if (_playerAnimation == null)
         {
-            invincibilityTimer -= Time.deltaTime;
-            if (invincibilityTimer <= 0)
-            {
-                isInvincible = false;
-            }
+            TryGetComponent(out _playerAnimation);
         }
     }
     
+    #endregion
+    
+    #region Health Management
+    
     /// <summary>
-    /// Nhận sát thương
+    /// Apply damage to player. Respects invincibility and death states.
     /// </summary>
-    /// <param name="damage">Lượng sát thương nhận vào</param>
+    /// <param name="damage">Amount of damage to apply</param>
     public void TakeDamage(int damage)
     {
-        // Không nhận sát thương nếu đang bất tử hoặc đã chết
-        if (isInvincible || IsDead) return;
+        if (!CanTakeDamage()) return;
         
-        // Trừ máu
-        currentHealth = Mathf.Max(0, currentHealth - damage);
+        ApplyDamage(damage);
+        ActivateInvincibility();
+        TriggerHurtAnimation();
+        NotifyHealthChanged();
+        NotifyPlayerHurt();
         
-        // Kích hoạt bất tử
-        isInvincible = true;
-        invincibilityTimer = invincibilityDuration;
-        
-        // Trigger hurt animation
-        if (playerAnimation != null)
-        {
-            playerAnimation.TriggerHurt();
-        }
-        
-        // Gọi events
-        OnHealthChanged?.Invoke(currentHealth, maxHealth);
-        OnPlayerHurt?.Invoke();
-        
-        // Kiểm tra nếu chết
         if (IsDead)
         {
-            Die();
+            HandleDeath();
         }
     }
     
     /// <summary>
-    /// Hồi máu
+    /// Check if player can receive damage
     /// </summary>
-    /// <param name="healAmount">Lượng máu hồi</param>
-    public void Heal(int healAmount)
+    private bool CanTakeDamage()
     {
-        if (IsDead) return;
-        
-        currentHealth = Mathf.Min(maxHealth, currentHealth + healAmount);
-        OnHealthChanged?.Invoke(currentHealth, maxHealth);
+        return !_isInvincible && !IsDead && _currentHealth > MIN_HEALTH;
     }
     
     /// <summary>
-    /// Hồi máu đầy
+    /// Apply damage amount to current health
+    /// </summary>
+    private void ApplyDamage(int damage)
+    {
+        _currentHealth = Mathf.Max(MIN_HEALTH, _currentHealth - damage);
+    }
+    
+    /// <summary>
+    /// Restore health points
+    /// </summary>
+    /// <param name="healAmount">Amount of health to restore</param>
+    public void Heal(int healAmount)
+    {
+        if (IsDead || healAmount <= 0) return;
+        
+        _currentHealth = Mathf.Min(_maxHealth, _currentHealth + healAmount);
+        NotifyHealthChanged();
+    }
+    
+    /// <summary>
+    /// Restore health to maximum
     /// </summary>
     public void HealFull()
     {
-        currentHealth = maxHealth;
-        OnHealthChanged?.Invoke(currentHealth, maxHealth);
+        if (IsDead) return;
+        
+        _currentHealth = _maxHealth;
+        NotifyHealthChanged();
     }
     
     /// <summary>
-    /// Xử lý khi player chết
+    /// Set new maximum health value (e.g., for level up)
     /// </summary>
-    private void Die()
+    /// <param name="newMaxHealth">New maximum health value</param>
+    public void SetMaxHealth(int newMaxHealth)
+    {
+        if (newMaxHealth < 1)
+        {
+            if (Debug.isDebugBuild)
+            {
+                Debug.LogWarning($"[PlayerHealth] Invalid max health value: {newMaxHealth}. Must be >= 1.");
+            }
+            return;
+        }
+        
+        _maxHealth = newMaxHealth;
+        _currentHealth = Mathf.Min(_currentHealth, _maxHealth);
+        NotifyHealthChanged();
+    }
+    
+    #endregion
+    
+    #region Invincibility
+    
+    /// <summary>
+    /// Update invincibility timer
+    /// </summary>
+    private void UpdateInvincibility()
+    {
+        if (!_isInvincible) return;
+        
+        _invincibilityTimer -= Time.deltaTime;
+        if (_invincibilityTimer <= 0f)
+        {
+            _isInvincible = false;
+        }
+    }
+    
+    /// <summary>
+    /// Activate invincibility frame period
+    /// </summary>
+    private void ActivateInvincibility()
+    {
+        _isInvincible = true;
+        _invincibilityTimer = _invincibilityDuration;
+    }
+    
+    #endregion
+    
+    #region Death & Respawn
+    
+    /// <summary>
+    /// Handle player death logic
+    /// </summary>
+    private void HandleDeath()
     {
         OnPlayerDied?.Invoke();
         
-        // Có thể thêm logic khác ở đây:
+        // Additional death logic can be added here:
         // - Disable player controller
         // - Play death animation
         // - Show game over UI
-        // - Reload scene sau một khoảng thời gian
+        // - Trigger respawn after delay
     }
     
     /// <summary>
-    /// Hồi sinh player
+    /// Respawn player with full health and reset invincibility
     /// </summary>
     public void Respawn()
     {
-        currentHealth = maxHealth;
-        isInvincible = false;
-        invincibilityTimer = 0f;
-        OnHealthChanged?.Invoke(currentHealth, maxHealth);
+        _currentHealth = _maxHealth;
+        _isInvincible = false;
+        _invincibilityTimer = 0f;
+        NotifyHealthChanged();
+    }
+    
+    #endregion
+    
+    #region Animation
+    
+    /// <summary>
+    /// Trigger hurt animation if animation component exists
+    /// </summary>
+    private void TriggerHurtAnimation()
+    {
+        _playerAnimation?.TriggerHurt();
+    }
+    
+    #endregion
+    
+    #region Events
+    
+    /// <summary>
+    /// Notify listeners of health change
+    /// </summary>
+    private void NotifyHealthChanged()
+    {
+        OnHealthChanged?.Invoke(_currentHealth, _maxHealth);
     }
     
     /// <summary>
-    /// Set máu tối đa (có thể dùng khi level up)
+    /// Notify listeners that player was hurt
     /// </summary>
-    public void SetMaxHealth(int newMaxHealth)
+    private void NotifyPlayerHurt()
     {
-        maxHealth = newMaxHealth;
-        currentHealth = Mathf.Min(currentHealth, maxHealth);
-        OnHealthChanged?.Invoke(currentHealth, maxHealth);
+        OnPlayerHurt?.Invoke();
     }
+    
+    #endregion
 }
-

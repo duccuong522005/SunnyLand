@@ -2,186 +2,306 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 
 /// <summary>
-/// Script chính điều khiển di chuyển và nhảy của player
-/// Sử dụng Unity Input System và Rigidbody2D cho physics
+/// Core player movement and jump controller using Unity Input System and Rigidbody2D physics.
+/// Implements coyote time and jump buffering for responsive platformer controls.
 /// </summary>
 [RequireComponent(typeof(Rigidbody2D))]
 [RequireComponent(typeof(GroundCheck))]
 public class PlayerController : MonoBehaviour
 {
+    #region Constants
+    
+    private const float MIN_VELOCITY_Y_THRESHOLD = 0.01f;
+    private const float VARIABLE_JUMP_MULTIPLIER = 0.5f;
+    
+    #endregion
+    
+    #region Inspector Settings - Movement
+    
     [Header("Movement Settings")]
-    [SerializeField] private float moveSpeed = 5f;
-    [SerializeField] private float jumpForce = 10f;
-    [SerializeField] private float coyoteTime = 0.2f; // Thời gian có thể nhảy sau khi rời mặt đất
-    [SerializeField] private float jumpBufferTime = 0.2f; // Thời gian buffer khi nhấn nhảy sớm
+    [Tooltip("Horizontal movement speed in units per second")]
+    [Range(1f, 20f)]
+    [SerializeField] private float _moveSpeed = 5f;
+    
+    [Tooltip("Vertical jump force applied when jumping")]
+    [Range(5f, 30f)]
+    [SerializeField] private float _jumpForce = 10f;
+    
+    [Tooltip("Time window after leaving ground where player can still jump (coyote time)")]
+    [Range(0f, 1f)]
+    [SerializeField] private float _coyoteTime = 0.2f;
+    
+    [Tooltip("Time window where early jump input is buffered if player isn't grounded yet")]
+    [Range(0f, 1f)]
+    [SerializeField] private float _jumpBufferTime = 0.2f;
+    
+    #endregion
+    
+    #region Inspector Settings - Physics
     
     [Header("Physics Settings")]
-    [SerializeField] private float groundDrag = 5f;
-    [SerializeField] private float airDrag = 1f;
+    [Tooltip("Linear damping (drag) when grounded")]
+    [Range(0f, 10f)]
+    [SerializeField] private float _groundDrag = 5f;
+    
+    [Tooltip("Linear damping (drag) when in air")]
+    [Range(0f, 5f)]
+    [SerializeField] private float _airDrag = 1f;
+    
+    #endregion
+    
+    #region Inspector Settings - References
     
     [Header("References")]
-    [SerializeField] private GroundCheck groundCheck;
-    [SerializeField] private PlayerAnimation playerAnimation;
+    [Tooltip("Ground check component for detecting ground collisions")]
+    [SerializeField] private GroundCheck _groundCheck;
     
-    // Private variables
-    private Rigidbody2D rb;
-    private float horizontalInput;
-    private bool jumpInput;
-    private bool wasGrounded;
-    private float coyoteTimeCounter;
-    private float jumpBufferCounter;
+    [Tooltip("Player animation controller for sprite flipping")]
+    [SerializeField] private PlayerAnimation _playerAnimation;
     
-    // Properties
-    public bool IsGrounded => groundCheck != null && groundCheck.IsGrounded();
-    public float MoveSpeed => moveSpeed;
-    public float HorizontalInput => horizontalInput;
+    #endregion
+    
+    #region Private Fields
+    
+    private Rigidbody2D _rb;
+    private float _horizontalInput;
+    private bool _jumpInput;
+    private bool _wasGrounded;
+    private float _coyoteTimeCounter;
+    private float _jumpBufferCounter;
+    
+    #endregion
+    
+    #region Public Properties
+    
+    /// <summary>
+    /// Returns true if player is currently grounded
+    /// </summary>
+    public bool IsGrounded => _groundCheck != null && _groundCheck.IsGrounded();
+    
+    /// <summary>
+    /// Current movement speed value
+    /// </summary>
+    public float MoveSpeed => _moveSpeed;
+    
+    /// <summary>
+    /// Current horizontal input value (-1 to 1)
+    /// </summary>
+    public float HorizontalInput => _horizontalInput;
+    
+    #endregion
+    
+    #region Unity Lifecycle
     
     private void Awake()
     {
-        rb = GetComponent<Rigidbody2D>();
-        
-        // Tự động tìm GroundCheck nếu chưa được gán
-        if (groundCheck == null)
-        {
-            groundCheck = GetComponent<GroundCheck>();
-        }
-        
-        // Tự động tìm PlayerAnimation nếu chưa được gán
-        if (playerAnimation == null)
-        {
-            playerAnimation = GetComponent<PlayerAnimation>();
-        }
+        CacheComponents();
+        ValidateReferences();
     }
     
     private void Update()
     {
-        HandleCoyoteTime();
-        HandleJumpBuffer();
+        UpdateCoyoteTime();
+        ProcessJumpBuffer();
         HandleSpriteFlip();
     }
     
     private void FixedUpdate()
     {
-        HandleMovement();
-        HandleDrag();
+        ApplyMovement();
+        ApplyDrag();
     }
     
-    /// <summary>
-    /// Xử lý di chuyển ngang của player
-    /// </summary>
-    private void HandleMovement()
-    {
-        rb.linearVelocity = new Vector2(horizontalInput * moveSpeed, rb.linearVelocity.y);
-    }
+    #endregion
+    
+    #region Initialization
     
     /// <summary>
-    /// Xử lý nhảy của player
+    /// Cache all required components in Awake for performance
     /// </summary>
-    private void HandleJump()
+    private void CacheComponents()
     {
-        // Kiểm tra điều kiện nhảy: đang trên mặt đất hoặc trong coyote time, và có jump buffer
-        if ((IsGrounded || coyoteTimeCounter > 0) && jumpBufferCounter > 0)
+        _rb = GetComponent<Rigidbody2D>();
+        
+        if (_rb == null)
         {
-            rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
-            jumpBufferCounter = 0;
-            coyoteTimeCounter = 0;
+            Debug.LogError($"[PlayerController] Rigidbody2D component not found on {gameObject.name}");
+        }
+        
+        if (_groundCheck == null)
+        {
+            TryGetComponent(out _groundCheck);
+        }
+        
+        if (_playerAnimation == null)
+        {
+            TryGetComponent(out _playerAnimation);
         }
     }
     
     /// <summary>
-    /// Xử lý drag (ma sát) khi trên mặt đất và trên không
+    /// Validate critical references and log warnings if missing
     /// </summary>
-    private void HandleDrag()
+    private void ValidateReferences()
+    {
+        if (_groundCheck == null)
+        {
+            Debug.LogWarning($"[PlayerController] GroundCheck component not found on {gameObject.name}. Movement may not work correctly.");
+        }
+    }
+    
+    #endregion
+    
+    #region Movement
+    
+    /// <summary>
+    /// Apply horizontal movement velocity based on input
+    /// Called in FixedUpdate for physics consistency
+    /// </summary>
+    private void ApplyMovement()
+    {
+        if (_rb == null) return;
+        
+        Vector2 currentVelocity = _rb.linearVelocity;
+        currentVelocity.x = _horizontalInput * _moveSpeed;
+        _rb.linearVelocity = currentVelocity;
+    }
+    
+    /// <summary>
+    /// Apply linear damping (drag) based on grounded state
+    /// </summary>
+    private void ApplyDrag()
+    {
+        if (_rb == null) return;
+        
+        _rb.linearDamping = IsGrounded ? _groundDrag : _airDrag;
+    }
+    
+    #endregion
+    
+    #region Jump
+    
+    /// <summary>
+    /// Execute jump if conditions are met (grounded/coyote time + jump buffer)
+    /// </summary>
+    private void ExecuteJump()
+    {
+        bool canJump = (IsGrounded || _coyoteTimeCounter > 0f) && _jumpBufferCounter > 0f;
+        
+        if (!canJump || _rb == null) return;
+        
+        Vector2 currentVelocity = _rb.linearVelocity;
+        currentVelocity.y = _jumpForce;
+        _rb.linearVelocity = currentVelocity;
+        
+        _jumpBufferCounter = 0f;
+        _coyoteTimeCounter = 0f;
+    }
+    
+    /// <summary>
+    /// Process variable jump height - reduce velocity if jump button released early
+    /// </summary>
+    private void ApplyVariableJumpHeight()
+    {
+        if (_rb == null) return;
+        
+        Vector2 currentVelocity = _rb.linearVelocity;
+        if (currentVelocity.y > MIN_VELOCITY_Y_THRESHOLD)
+        {
+            currentVelocity.y *= VARIABLE_JUMP_MULTIPLIER;
+            _rb.linearVelocity = currentVelocity;
+        }
+    }
+    
+    #endregion
+    
+    #region Coyote Time
+    
+    /// <summary>
+    /// Update coyote time counter for forgiving jump timing
+    /// </summary>
+    private void UpdateCoyoteTime()
     {
         if (IsGrounded)
         {
-            rb.linearDamping = groundDrag;
+            _coyoteTimeCounter = _coyoteTime;
+            _wasGrounded = true;
         }
-        else
+        else if (_wasGrounded)
         {
-            rb.linearDamping = airDrag;
-        }
-    }
-    
-    /// <summary>
-    /// Xử lý coyote time - cho phép nhảy một chút sau khi rời mặt đất
-    /// </summary>
-    private void HandleCoyoteTime()
-    {
-        if (IsGrounded)
-        {
-            coyoteTimeCounter = coyoteTime;
-            wasGrounded = true;
-        }
-        else if (wasGrounded)
-        {
-            coyoteTimeCounter -= Time.deltaTime;
-            if (coyoteTimeCounter <= 0)
+            _coyoteTimeCounter -= Time.deltaTime;
+            if (_coyoteTimeCounter <= 0f)
             {
-                wasGrounded = false;
-            }
-        }
-    }
-    
-    /// <summary>
-    /// Xử lý jump buffer - cho phép nhảy nếu nhấn nhảy sớm một chút
-    /// </summary>
-    private void HandleJumpBuffer()
-    {
-        if (jumpInput)
-        {
-            jumpBufferCounter = jumpBufferTime;
-            HandleJump();
-        }
-        else
-        {
-            jumpBufferCounter -= Time.deltaTime;
-        }
-    }
-    
-    /// <summary>
-    /// Xử lý flip sprite dựa trên hướng di chuyển
-    /// </summary>
-    private void HandleSpriteFlip()
-    {
-        if (playerAnimation != null && horizontalInput != 0)
-        {
-            playerAnimation.FlipSprite(horizontalInput);
-        }
-    }
-    
-    #region Input System Callbacks
-    
-    /// <summary>
-    /// Callback từ Input System khi di chuyển ngang
-    /// </summary>
-    public void OnMove(InputAction.CallbackContext context)
-    {
-        horizontalInput = context.ReadValue<Vector2>().x;
-    }
-    
-    /// <summary>
-    /// Callback từ Input System khi nhấn nhảy
-    /// </summary>
-    public void OnJump(InputAction.CallbackContext context)
-    {
-        if (context.started)
-        {
-            jumpInput = true;
-            jumpBufferCounter = jumpBufferTime;
-        }
-        else if (context.canceled)
-        {
-            jumpInput = false;
-            
-            // Cho phép nhảy ngắn hơn nếu thả sớm
-            if (rb.linearVelocity.y > 0)
-            {
-                rb.linearVelocity = new Vector2(rb.linearVelocity.x, rb.linearVelocity.y * 0.5f);
+                _wasGrounded = false;
             }
         }
     }
     
     #endregion
+    
+    #region Jump Buffer
+    
+    /// <summary>
+    /// Process jump input buffer for responsive controls
+    /// </summary>
+    private void ProcessJumpBuffer()
+    {
+        if (_jumpInput)
+        {
+            _jumpBufferCounter = _jumpBufferTime;
+            ExecuteJump();
+        }
+        else
+        {
+            _jumpBufferCounter -= Time.deltaTime;
+        }
+    }
+    
+    #endregion
+    
+    #region Visual
+    
+    /// <summary>
+    /// Flip sprite based on movement direction
+    /// </summary>
+    private void HandleSpriteFlip()
+    {
+        if (_playerAnimation != null && Mathf.Abs(_horizontalInput) > 0.01f)
+        {
+            _playerAnimation.FlipSprite(_horizontalInput);
+        }
+    }
+    
+    #endregion
+    
+    #region Input System Callbacks
+    
+    /// <summary>
+    /// Called by Input System when move input is received
+    /// </summary>
+    /// <param name="context">Input action callback context</param>
+    public void OnMove(InputAction.CallbackContext context)
+    {
+        _horizontalInput = context.ReadValue<Vector2>().x;
+    }
+    
+    /// <summary>
+    /// Called by Input System when jump input is received
+    /// </summary>
+    /// <param name="context">Input action callback context</param>
+    public void OnJump(InputAction.CallbackContext context)
+    {
+        if (context.started)
+        {
+            _jumpInput = true;
+            _jumpBufferCounter = _jumpBufferTime;
+        }
+        else if (context.canceled)
+        {
+            _jumpInput = false;
+            ApplyVariableJumpHeight();
+        }
+    }
+    
+    #endregion
 }
-
