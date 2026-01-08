@@ -90,6 +90,20 @@ Assets/Prefabs/
 
 ---
 
+## 🎮 Scene chính: MainGame.unity
+
+**MainGame.unity** là scene chính để test đầy đủ game:
+- ✅ Mở scene này khi muốn test toàn bộ game
+- ✅ Bấm Play để chạy game đầy đủ
+- ✅ Scene này chứa tất cả Prefabs đã hoàn thành
+
+**Quy tắc:**
+- ⚠️ **KHÔNG** sửa trực tiếp GameObject trong MainGame.unity
+- ✅ Chỉ kéo Prefabs vào scene
+- ✅ Mỗi người làm việc trên Prefab riêng, không sửa scene
+
+---
+
 ## 🔄 Quy trình làm việc hàng ngày
 
 ### Buổi sáng (Pull code mới):
@@ -97,34 +111,44 @@ Assets/Prefabs/
 git pull origin feature/player-controller
 ```
 1. Mở Unity, đợi import xong
-2. Mở Scene chính
-3. Kiểm tra Prefabs mới từ team
-4. Nếu có Prefab mới, kéo vào Scene nếu cần
+2. **Làm việc:** Mở Prefab riêng của mình để sửa
+3. **Test:** Mở MainGame.unity để test đầy đủ
+4. Kiểm tra Prefabs mới từ team
+5. Nếu có Prefab mới, kéo vào MainGame.unity nếu cần
 
 ### Trong khi làm việc:
-1. **Tạo Prefab mới:**
-   - Tạo GameObject trong Scene
-   - Kéo vào thư mục Prefabs phù hợp
-   - Xóa instance trong Scene
-   - Kéo Prefab vào Scene
 
-2. **Sửa Prefab hiện có:**
-   - Mở Prefab trong Prefab Mode (double-click Prefab)
+**Làm việc trên Prefab (Khuyên dùng):**
+1. **Mở Prefab để sửa:**
+   - Double-click Prefab trong Project window
    - Sửa trong Prefab Mode
-   - Tất cả instances sẽ tự động update
+   - Tất cả instances trong MainGame.unity sẽ tự động update
 
-3. **Thêm vào Scene:**
-   - Chỉ kéo Prefab vào Scene
-   - **KHÔNG** sửa trực tiếp instance trong Scene
+2. **Tạo Prefab mới:**
+   - Tạo GameObject tạm trong Scene test riêng
+   - Kéo vào thư mục Prefabs phù hợp để tạo Prefab
+   - Xóa instance tạm
+   - Kéo Prefab vào MainGame.unity khi cần
+
+3. **Test trong MainGame.unity:**
+   - Mở MainGame.unity
+   - Kéo Prefabs mới vào scene nếu cần
+   - Bấm Play để test đầy đủ
+   - **KHÔNG** sửa trực tiếp GameObject trong scene
 
 ### Buổi tối (Commit code):
 ```bash
 git add Assets/Prefabs/
 git add Assets/Scripts/
-# KHÔNG add Scene trừ khi thực sự cần
+# CHỈ add MainGame.unity khi thực sự cần (thêm Prefab mới vào scene)
 git commit -m "feat: add new enemy prefab"
 git push origin feature/player-controller
 ```
+
+**Lưu ý về MainGame.unity:**
+- ✅ Commit khi: Thêm Prefab mới vào scene, setup scene quan trọng
+- ❌ KHÔNG commit khi: Chỉ test, sửa nhỏ không ảnh hưởng
+- 💡 Mỗi người có thể có MainGame.unity riêng để test, nhưng scene chính nên được đồng bộ
 
 ---
 
@@ -181,10 +205,15 @@ Sau đó:
 
 ## 🎯 Best Practices
 
-1. **Mỗi người một Scene riêng để test:**
-   - `SampleScene_MapDesigner.unity` - Cho người xây Map
-   - `SampleScene_PlayerDev.unity` - Cho người làm Player
-   - `SampleScene_Main.unity` - Scene chính (ít commit)
+1. **Scene chính: MainGame.unity**
+   - Scene này để test đầy đủ game
+   - Chỉ kéo Prefabs vào, không sửa trực tiếp
+   - Commit khi thêm Prefab mới hoặc setup quan trọng
+
+2. **Mỗi người làm việc trên Prefab:**
+   - Double-click Prefab để mở Prefab Mode
+   - Sửa trong Prefab Mode
+   - Test trong MainGame.unity sau khi sửa xong
 
 2. **Sử dụng Scene Templates:**
    - Tạo Scene template với setup cơ bản
