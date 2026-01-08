@@ -93,6 +93,7 @@ Assets/Prefabs/
 ## 🎮 Scene chính: MainGame.unity
 
 **MainGame.unity** là scene chính để test đầy đủ game:
+- 📍 Vị trí: `Assets/Prefabs/Map/MainGame.unity`
 - ✅ Mở scene này khi muốn test toàn bộ game
 - ✅ Bấm Play để chạy game đầy đủ
 - ✅ Scene này chứa tất cả Prefabs đã hoàn thành
@@ -112,7 +113,7 @@ git pull origin feature/player-controller
 ```
 1. Mở Unity, đợi import xong
 2. **Làm việc:** Mở Prefab riêng của mình để sửa
-3. **Test:** Mở MainGame.unity để test đầy đủ
+3. **Test:** Mở `Assets/Prefabs/Map/MainGame.unity` để test đầy đủ
 4. Kiểm tra Prefabs mới từ team
 5. Nếu có Prefab mới, kéo vào MainGame.unity nếu cần
 
@@ -131,7 +132,7 @@ git pull origin feature/player-controller
    - Kéo Prefab vào MainGame.unity khi cần
 
 3. **Test trong MainGame.unity:**
-   - Mở MainGame.unity
+   - Mở `Assets/Prefabs/Map/MainGame.unity`
    - Kéo Prefabs mới vào scene nếu cần
    - Bấm Play để test đầy đủ
    - **KHÔNG** sửa trực tiếp GameObject trong scene
@@ -206,6 +207,7 @@ Sau đó:
 ## 🎯 Best Practices
 
 1. **Scene chính: MainGame.unity**
+   - Vị trí: `Assets/Prefabs/Map/MainGame.unity`
    - Scene này để test đầy đủ game
    - Chỉ kéo Prefabs vào, không sửa trực tiếp
    - Commit khi thêm Prefab mới hoặc setup quan trọng
@@ -213,7 +215,7 @@ Sau đó:
 2. **Mỗi người làm việc trên Prefab:**
    - Double-click Prefab để mở Prefab Mode
    - Sửa trong Prefab Mode
-   - Test trong MainGame.unity sau khi sửa xong
+   - Test trong `Assets/Prefabs/Map/MainGame.unity` sau khi sửa xong
 
 2. **Sử dụng Scene Templates:**
    - Tạo Scene template với setup cơ bản
