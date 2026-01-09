@@ -5,7 +5,7 @@ PlayerSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 28
   productGUID: 317a102f9af57404e81b17a7ef20973c
-  AndroidProfiler: 0
+  AndroidProfiler: 1
   AndroidFilterTouchesWhenObscured: 0
   AndroidEnableSustainedPerformanceMode: 0
   defaultScreenOrientation: 4
@@ -166,8 +166,8 @@ PlayerSettings:
   androidMaxAspectRatio: 2.4
   androidMinAspectRatio: 1
   applicationIdentifier:
-    Android: com.git.duccuong522005
-    Standalone: com.DefaultCompany.2D-URP
+    Android: com.git.duccuong
+    Standalone: com.git.duccuong
   buildNumber:
     Standalone: 0
     VisionOS: 0
