@@ -115,6 +115,11 @@ public class PlayerHealth : MonoBehaviour
         {
             TryGetComponent(out _playerAnimation);
         }
+        
+        if (_playerAnimation == null && Debug.isDebugBuild)
+        {
+            Debug.LogWarning($"[PlayerHealth] PlayerAnimation component not found on {gameObject.name}. Hurt animation will not trigger.");
+        }
     }
     
     #endregion

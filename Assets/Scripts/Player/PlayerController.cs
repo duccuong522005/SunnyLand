@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using SunnyLand.Utilities;
 
 /// <summary>
 /// Core player movement and jump controller using Unity Input System and Rigidbody2D physics.
@@ -9,12 +10,6 @@ using UnityEngine.InputSystem;
 [RequireComponent(typeof(GroundCheck))]
 public class PlayerController : MonoBehaviour
 {
-    #region Constants
-    
-    private const float MIN_VELOCITY_Y_THRESHOLD = 0.01f;
-    private const float VARIABLE_JUMP_MULTIPLIER = 0.5f;
-    
-    #endregion
     
     #region Inspector Settings - Movement
     
@@ -158,7 +153,6 @@ public class PlayerController : MonoBehaviour
     private void CacheComponents()
     {
         _rb = GetComponent<Rigidbody2D>();
-        
         if (_rb == null)
         {
             Debug.LogError($"[PlayerController] Rigidbody2D component not found on {gameObject.name}");
@@ -174,19 +168,25 @@ public class PlayerController : MonoBehaviour
             TryGetComponent(out _playerAnimation);
         }
         
-        // Cache CapsuleCollider2D
         if (_capsuleCollider == null)
         {
             TryGetComponent(out _capsuleCollider);
         }
         
+        CacheColliderOriginalValues();
+    }
+    
+    /// <summary>
+    /// Cache original collider values for crouch functionality
+    /// </summary>
+    private void CacheColliderOriginalValues()
+    {
         if (_capsuleCollider != null)
         {
-            // Store original values
             _originalColliderSize = _capsuleCollider.size;
             _originalColliderOffset = _capsuleCollider.offset;
         }
-        else
+        else if (Debug.isDebugBuild)
         {
             Debug.LogWarning($"[PlayerController] CapsuleCollider2D not found on {gameObject.name}. Crouch collider adjustment will not work.");
         }
@@ -197,7 +197,7 @@ public class PlayerController : MonoBehaviour
     /// </summary>
     private void ValidateReferences()
     {
-        if (_groundCheck == null)
+        if (_groundCheck == null && Debug.isDebugBuild)
         {
             Debug.LogWarning($"[PlayerController] GroundCheck component not found on {gameObject.name}. Movement may not work correctly.");
         }
@@ -272,9 +272,9 @@ public class PlayerController : MonoBehaviour
         if (_rb == null) return;
         
         Vector2 currentVelocity = _rb.linearVelocity;
-        if (currentVelocity.y > MIN_VELOCITY_Y_THRESHOLD)
+        if (currentVelocity.y > GameConstants.MIN_VELOCITY_Y_THRESHOLD)
         {
-            currentVelocity.y *= VARIABLE_JUMP_MULTIPLIER;
+            currentVelocity.y *= GameConstants.VARIABLE_JUMP_MULTIPLIER;
             _rb.linearVelocity = currentVelocity;
         }
     }
@@ -332,7 +332,7 @@ public class PlayerController : MonoBehaviour
     /// </summary>
     private void HandleSpriteFlip()
     {
-        if (_playerAnimation != null && Mathf.Abs(_horizontalInput) > 0.01f)
+        if (_playerAnimation != null && Mathf.Abs(_horizontalInput) > GameConstants.MIN_INPUT_THRESHOLD)
         {
             _playerAnimation.FlipSprite(_horizontalInput);
         }
@@ -405,18 +405,7 @@ public class PlayerController : MonoBehaviour
         float currentTop = checkPosition.y + (_capsuleCollider.size.y * 0.5f);
         Vector2 ceilingCheckPos = new Vector2(checkPosition.x, currentTop + heightDifference);
         
-        // Use BoxCast upward to check for ceiling
-        Vector2 boxSize = new Vector2(_capsuleCollider.size.x * 0.8f, 0.1f);
-        RaycastHit2D hit = Physics2D.BoxCast(
-            origin: ceilingCheckPos,
-            size: boxSize,
-            angle: 0f,
-            direction: Vector2.up,
-            distance: _ceilingCheckDistance,
-            layerMask: _ceilingLayer
-        );
-        
-        return hit.collider == null;
+        return !PerformCeilingCheck(ceilingCheckPos, _capsuleCollider.size.x, _ceilingCheckDistance);
     }
     
     /// <summary>
@@ -430,27 +419,32 @@ public class PlayerController : MonoBehaviour
         // Calculate what the top position would be if standing up
         Vector2 checkPosition = (Vector2)transform.position + _originalColliderOffset;
         float standTop = checkPosition.y + (_originalColliderSize.y * 0.5f);
-        
-        // Check if there's a ceiling at standing height
-        Vector2 boxSize = new Vector2(_originalColliderSize.x * 0.8f, 0.1f);
         Vector2 ceilingCheckPos = new Vector2(checkPosition.x, standTop);
         
+        return PerformCeilingCheck(ceilingCheckPos, _originalColliderSize.x, 0.1f);
+    }
+    
+    /// <summary>
+    /// Perform a ceiling check using BoxCast upward
+    /// </summary>
+    /// <param name="checkPosition">Position to check from</param>
+    /// <param name="colliderWidth">Width of the collider to use for box size</param>
+    /// <param name="checkDistance">Distance to check upward</param>
+    /// <returns>True if ceiling is detected</returns>
+    private bool PerformCeilingCheck(Vector2 checkPosition, float colliderWidth, float checkDistance)
+    {
+        Vector2 boxSize = new Vector2(colliderWidth * 0.8f, 0.1f);
         RaycastHit2D hit = Physics2D.BoxCast(
-            origin: ceilingCheckPos,
+            origin: checkPosition,
             size: boxSize,
             angle: 0f,
             direction: Vector2.up,
-            distance: 0.1f, // Small distance to check immediate ceiling
+            distance: checkDistance,
             layerMask: _ceilingLayer
         );
         
         // Make sure we're not detecting our own collider
-        if (hit.collider != null && hit.collider != _capsuleCollider)
-        {
-            return true;
-        }
-        
-        return false;
+        return hit.collider != null && hit.collider != _capsuleCollider;
     }
     
     /// <summary>

@@ -1,4 +1,5 @@
 using UnityEngine;
+using SunnyLand.Utilities;
 
 /// <summary>
 /// Camera controller that smoothly follows a target with optional bounds and look-ahead.
@@ -88,7 +89,7 @@ public class CameraFollow : MonoBehaviour
     {
         _camera = GetComponent<Camera>();
         
-        if (_camera == null)
+        if (_camera == null && Debug.isDebugBuild)
         {
             Debug.LogWarning($"[CameraFollow] Camera component not found on {gameObject.name}");
         }
@@ -101,7 +102,7 @@ public class CameraFollow : MonoBehaviour
     {
         if (_target != null) return;
         
-        GameObject player = GameObject.FindGameObjectWithTag("Player");
+        GameObject player = GameObject.FindGameObjectWithTag(GameConstants.TAG_PLAYER);
         if (player != null)
         {
             _target = player.transform;
@@ -109,7 +110,7 @@ public class CameraFollow : MonoBehaviour
         }
         else if (Debug.isDebugBuild)
         {
-            Debug.LogWarning($"[CameraFollow] No target assigned and no GameObject with 'Player' tag found.");
+            Debug.LogWarning($"[CameraFollow] No target assigned and no GameObject with '{GameConstants.TAG_PLAYER}' tag found.");
         }
     }
     

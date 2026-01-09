@@ -1,4 +1,5 @@
 using UnityEngine;
+using SunnyLand.Utilities;
 
 /// <summary>
 /// Manages player animation states and sprite flipping.
@@ -8,17 +9,6 @@ using UnityEngine;
 [RequireComponent(typeof(PlayerController))]
 public class PlayerAnimation : MonoBehaviour
 {
-    #region Constants - Animation Parameter Names
-    
-    private const string ANIM_PARAM_SPEED = "Speed";
-    private const string ANIM_PARAM_IS_GROUNDED = "IsGrounded";
-    private const string ANIM_PARAM_IS_JUMPING = "IsJumping";
-    private const string ANIM_PARAM_IS_FALLING = "IsFalling";
-    private const string ANIM_PARAM_IS_CLIMBING = "IsClimbing";
-    private const string ANIM_PARAM_IS_CROUCHING = "IsCrouching";
-    private const string ANIM_PARAM_IS_HURT = "IsHurt";
-    
-    #endregion
     
     #region Inspector Settings
     
@@ -91,6 +81,10 @@ public class PlayerAnimation : MonoBehaviour
         {
             _hasAnimatorController = _animator.runtimeAnimatorController != null;
         }
+        else if (Debug.isDebugBuild)
+        {
+            Debug.LogWarning($"[PlayerAnimation] Animator component not found on {gameObject.name}.");
+        }
     }
     
     /// <summary>
@@ -133,7 +127,7 @@ public class PlayerAnimation : MonoBehaviour
     private void UpdateSpeedParameter()
     {
         float speed = Mathf.Abs(_playerController.HorizontalInput);
-        _animator.SetFloat(ANIM_PARAM_SPEED, speed);
+        _animator.SetFloat(GameConstants.ANIM_PARAM_SPEED, speed);
     }
     
     /// <summary>
@@ -141,8 +135,16 @@ public class PlayerAnimation : MonoBehaviour
     /// </summary>
     private void UpdateGroundedParameter()
     {
-        bool isGrounded = _groundCheck != null && _groundCheck.IsGrounded();
-        _animator.SetBool(ANIM_PARAM_IS_GROUNDED, isGrounded);
+        bool isGrounded = GetIsGrounded();
+        _animator.SetBool(GameConstants.ANIM_PARAM_IS_GROUNDED, isGrounded);
+    }
+    
+    /// <summary>
+    /// Get grounded state from ground check component
+    /// </summary>
+    private bool GetIsGrounded()
+    {
+        return _groundCheck != null && _groundCheck.IsGrounded();
     }
     
     /// <summary>
@@ -151,7 +153,7 @@ public class PlayerAnimation : MonoBehaviour
     private void UpdateJumpAndFallParameters()
     {
         float currentY = transform.position.y;
-        bool isGrounded = _groundCheck != null && _groundCheck.IsGrounded();
+        bool isGrounded = GetIsGrounded();
         
         if (!isGrounded)
         {
@@ -200,8 +202,8 @@ public class PlayerAnimation : MonoBehaviour
     {
         if (!_hasAnimatorController) return;
         
-        _animator.SetBool(ANIM_PARAM_IS_JUMPING, isJumping);
-        _animator.SetBool(ANIM_PARAM_IS_FALLING, isFalling);
+        _animator.SetBool(GameConstants.ANIM_PARAM_IS_JUMPING, isJumping);
+        _animator.SetBool(GameConstants.ANIM_PARAM_IS_FALLING, isFalling);
     }
     
     #endregion
@@ -215,7 +217,7 @@ public class PlayerAnimation : MonoBehaviour
     public void SetClimbing(bool isClimbing)
     {
         if (!_hasAnimatorController) return;
-        _animator.SetBool(ANIM_PARAM_IS_CLIMBING, isClimbing);
+        _animator.SetBool(GameConstants.ANIM_PARAM_IS_CLIMBING, isClimbing);
     }
     
     /// <summary>
@@ -225,7 +227,7 @@ public class PlayerAnimation : MonoBehaviour
     public void SetCrouching(bool isCrouching)
     {
         if (!_hasAnimatorController) return;
-        _animator.SetBool(ANIM_PARAM_IS_CROUCHING, isCrouching);
+        _animator.SetBool(GameConstants.ANIM_PARAM_IS_CROUCHING, isCrouching);
     }
     
     /// <summary>
@@ -234,7 +236,7 @@ public class PlayerAnimation : MonoBehaviour
     public void TriggerHurt()
     {
         if (!_hasAnimatorController) return;
-        _animator.SetTrigger(ANIM_PARAM_IS_HURT);
+        _animator.SetTrigger(GameConstants.ANIM_PARAM_IS_HURT);
     }
     
     /// <summary>
@@ -245,12 +247,12 @@ public class PlayerAnimation : MonoBehaviour
     {
         Vector3 currentScale = transform.localScale;
         
-        if (horizontalInput > 0.01f)
+        if (horizontalInput > GameConstants.MIN_INPUT_THRESHOLD)
         {
             // Moving right - normal scale
             currentScale.x = Mathf.Abs(currentScale.x);
         }
-        else if (horizontalInput < -0.01f)
+        else if (horizontalInput < -GameConstants.MIN_INPUT_THRESHOLD)
         {
             // Moving left - flip sprite
             currentScale.x = -Mathf.Abs(currentScale.x);

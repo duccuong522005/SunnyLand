@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.Serialization;
+using SunnyLand.Utilities;
 
 /// <summary>
 /// Utility component for detecting ground collisions using 2D physics BoxCast.
@@ -10,8 +11,6 @@ public class GroundCheck : MonoBehaviour
 {
     #region Constants
     
-    private const float BOX_WIDTH_MULTIPLIER = 0.8f;
-    private const float BOX_HEIGHT_MULTIPLIER = 0.5f;
     private const float CAST_ANGLE = 0f;
     
     #endregion
@@ -109,8 +108,8 @@ public class GroundCheck : MonoBehaviour
     private Vector2 CalculateBoxSize()
     {
         return new Vector2(
-            _checkWidth * BOX_WIDTH_MULTIPLIER,
-            _checkWidth * BOX_HEIGHT_MULTIPLIER
+            _checkWidth * GameConstants.BOX_WIDTH_MULTIPLIER,
+            _checkWidth * GameConstants.BOX_HEIGHT_MULTIPLIER
         );
     }
     
