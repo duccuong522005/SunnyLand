@@ -1,0 +1,64 @@
+# Unity Git Attributes
+# Đảm bảo file .unity được xử lý đúng cách
+
+# Scene files - Binary files, không merge được
+*.unity binary
+*.unity.meta text
+
+# Prefab files - Text files, có thể merge
+*.prefab text
+*.prefab.meta text
+
+# Asset files
+*.asset text
+*.asset.meta text
+
+# Script files
+*.cs text
+*.cs.meta text
+
+# Auto detect text files
+*.txt text
+*.md text
+*.json text
+*.xml text
+*.yaml text
+*.yml text
+
+# Force LF line endings for text files
+*.cs text eol=lf
+*.prefab text eol=lf
+*.asset text eol=lf
+*.meta text eol=lf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.psd binary
+*.tga binary
+*.tif binary
+*.tiff binary
+*.dds binary
+*.exr binary
+*.fbx binary
+*.obj binary
+*.3ds binary
+*.blend binary
+*.max binary
+*.mb binary
+*.ma binary
+*.mp3 binary
+*.ogg binary
+*.wav binary
+*.aiff binary
+*.flac binary
+*.mp4 binary
+*.mov binary
+*.avi binary
+*.webm binary
+*.ttf binary
+*.otf binary
+*.fon binary
+
