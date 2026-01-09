@@ -124,3 +124,6 @@ Desktop.ini
 *.swp
 *~
 *.orig
+
+# Plastic SCM metadata
+.plastic/
